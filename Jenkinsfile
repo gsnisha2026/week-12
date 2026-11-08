@@ -3,96 +3,61 @@ pipeline {
     agent any
 
     stages {
-        stage('Install Dependencies') {
+        stage('Checkout') {
             steps {
-                echo 'Installing Python dependencies'
-                sh 'python3 -m pip install -r requirements.txt'
+                echo 'Week 12 Registration project checked out from GitHub'
             }
         }
 
-        stage('Run Flask Application and Selenium Tests') {
+        stage('Run Selenium Tests with pytest') {
             steps {
-                sh '''
-                    nohup python3 app.py > app.log 2>&1 &
-                    echo $! > app.pid
+                echo 'Running Selenium Tests using pytest'
 
-                    for i in $(seq 1 30); do
-                        if curl -fsS http://127.0.0.1:5000/ > /dev/null; then
-                            echo "Flask application is ready"
-                            break
-                        fi
-                        sleep 2
-                    done
+                bat 'pip install -r requirements.txt'
 
-                    curl -fsS http://127.0.0.1:5000/ > /dev/null
-                    python3 -m pytest -v tests/test_register.py
-                '''
+                bat 'start /B python app.py'
+
+                bat 'ping 127.0.0.1 -n 5 > nul'
+
+                bat 'python -m pytest -v'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t seleniumdemo:v1 .'
+                bat 'docker build -t w12-registration:v1 .'
             }
         }
 
-        stage('Docker Hub Login') {
+        stage('Login to Docker Hub') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'nisha1310',
-                    passwordVariable: 'Gsnisha2023'
-                )]) {
-                    sh '''
-                        echo "$Gsnisha2023" | docker login \
-                            -u "$nisha1310" --password-stdin
-                    '''
+               
+                   bat 'docker login -u nisha1310 -p <Gsnisha2023>'
                 }
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'nisha1310',
-                    passwordVariable: 'Gsnisha2023'
-                )]) {
-                    sh '''
-                        docker tag seleniumdemo:v1 \
-                            "$DH_USER/simple-demo:seleniumimage1"
-
-                        docker push "$DH_USER/simple-demo:seleniumimage1"
-                    '''
-                }
+                bat 'docker tag w12-registration:v1 nisha1310/simple-demo:w12-registration'
+                bat 'docker push nisha1310/simple-demo:w12-registration'
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
-                sh 'kubectl apply -f deployment.yaml --validate=false'
-                sh 'kubectl apply -f service.yaml'
-                sh 'kubectl rollout status deployment --timeout=120s'
+                bat 'kubectl apply -f deployment.yaml --validate=false'
+                bat 'kubectl apply -f service.yaml'
             }
         }
     }
 
     post {
-        always {
-            sh '''
-                if [ -f app.pid ]; then
-                    kill "$(cat app.pid)" 2>/dev/null || true
-                    rm -f app.pid
-                fi
-            '''
-        }
-
         success {
-            echo 'W12 pipeline completed successfully!'
+            echo 'Pipeline completed successfully!'
         }
-
         failure {
-            echo 'Pipeline failed. Check the Jenkins console output.'
+            echo 'Pipeline failed. Please check the logs.'
         }
     }
 }
