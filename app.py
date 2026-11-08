@@ -10,21 +10,16 @@ def index():
 
 
 @app.route("/submit", methods=["POST"])
+
+
+
+
 def submit():
-    username = request.form.get("username", "").strip()
-    password = request.form.get("pwd", "")
-
-    if not username:
-        return "Username cannot be empty.", 400
-
-    if not password:
-        return "Password cannot be empty.", 400
-
-    if len(password) < 6:
-        return "Password must be at least 6 characters long.", 400
+    # Get data from the form
+    username = request.form['username']
+    
 
     return render_template("success.html", name=username)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port= 5000, debug = True)
 
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=False)
